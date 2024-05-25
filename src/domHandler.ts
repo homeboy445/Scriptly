@@ -1,13 +1,9 @@
+import { scriptMicroUtil } from "./Utility/utils";
 import { ScriptEntry } from "./types/types";
 
 export enum ElementType {
     SCRIPT = 1,
     STYLE = 2
-};
-
-const scriptMicroUtil = {
-    isExternalScriptTag: ({ src }: ScriptEntry) => !!src,
-    isInlineScriptTag: ({ inlineCode }: ScriptEntry) => !!inlineCode
 };
 
 class DOMHandler {

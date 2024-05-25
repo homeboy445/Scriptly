@@ -7,12 +7,17 @@ export enum LoadPriority {
 };
 
 export type ScriptEntry = {
-    priority: LoadPriority;
-    attributes?: Record<string, unknown>
+    attributes?: Record<string, unknown>;
+    processed?: boolean;
 } & ({ src: string; inlineCode?: never; } | { inlineCode: string; src?: never; });
 
-export type ScriptStore = Array<ScriptEntry>;
+
+export type ScriptStore = {
+    [priorityLevel in LoadPriority]: Array<ScriptEntry>;
+};
 
 export interface GenericObject {
     [propertyName: string]: any
 };
+
+export type NOOP = () => void;

@@ -1,3 +1,4 @@
+import { ScriptEntry } from "../types/types";
 
 /**
  * Checks if the provided element is either undefined, null, or NaN.
@@ -12,3 +13,23 @@ export const isElementNotDefined = (element: unknown): boolean => {
     return isUndefined || isNull || isNaN;
 };
 
+/**
+ * Utility functions related to script tags.
+ */
+export const scriptMicroUtil = {
+    /**
+     * Checks if the script entry is an external script tag.
+     *
+     * @param {ScriptEntry} scriptEntry - The script entry to check.
+     * @returns {boolean} - Returns true if the script entry has a 'src' property; otherwise, false.
+     */
+    isExternalScriptTag: ({ src }: ScriptEntry) => !!src,
+
+    /**
+     * Checks if the script entry is an inline script tag.
+     *
+     * @param {ScriptEntry} scriptEntry - The script entry to check.
+     * @returns {boolean} - Returns true if the script entry has an 'inlineCode' property; otherwise, false.
+     */
+    isInlineScriptTag: ({ inlineCode }: ScriptEntry) => !!inlineCode
+};
