@@ -1,8 +1,8 @@
 {
-  "name": "scriptly",
+  "name": "script-orchestrator",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "dist/index.js",
   "scripts": {
     "build": "webpack --mode production",
     "start": "webpack serve --mode development"
