@@ -122,7 +122,8 @@ class ScriptHandler {
       // In case a script entry contains both src and inlineCode, then we will create two separate entry for both of them!
       const scriptConfigWithHtml = { ...scriptConfig };
       delete scriptConfigWithHtml.src;
-      idxList.push(this.scriptStore[priority].push(scriptConfigWithHtml));
+      this.scriptStore[priority].push(scriptConfigWithHtml);
+      idxList.push(this.scriptStore[priority].length - 1);
       delete scriptConfig.inlineCode;
     }
 
@@ -131,7 +132,8 @@ class ScriptHandler {
       scriptConfig.timeout = timeout;
     }
 
-    idxList.push(this.scriptStore[priority].push(scriptConfig));
+    this.scriptStore[priority].push(scriptConfig);
+    idxList.push(this.scriptStore[priority].length - 1);
     return idxList;
   }
 
@@ -147,11 +149,13 @@ class ScriptHandler {
     priority: LoadPriority,
     timeout?: number
   ): number[] {
-
     const scriptConfig = { src: srcUrl, attributes };
 
     if (priority === LoadPriority.EXCEPTIONAL) {
-      scriptConfig.attributes = Object.assign({ async: true }, scriptConfig.attributes || {});
+      scriptConfig.attributes = Object.assign(
+        { async: true },
+        scriptConfig.attributes || {}
+      );
       return domHandler.append(scriptConfig, ElementType.SCRIPT), [-1];
     }
 
@@ -169,7 +173,6 @@ class ScriptHandler {
     attributes: GenericObject,
     priority: LoadPriority
   ): number[] {
-
     let mainJScode = "";
 
     if (isDefinedString(inlineCode)) {
@@ -186,10 +189,7 @@ class ScriptHandler {
       return domHandler.append(scriptConfig, ElementType.SCRIPT), [-1];
     }
 
-    return this.addScriptConfig(
-      scriptConfig,
-      priority
-    );
+    return this.addScriptConfig(scriptConfig, priority);
   }
 
   /**
@@ -208,8 +208,12 @@ class ScriptHandler {
       eventBus.on(eventListener.name, callback);
     } else {
       switch (eventListener.name) {
-        case NATIVE_EVENTS.DOM_LOAD: { // If these conditions don't meet - just fall down to default!
-          if (document.readyState === "interactive" || document.readyState === "complete") {
+        case NATIVE_EVENTS.DOM_LOAD: {
+          // If these conditions don't meet - just fall down to default!
+          if (
+            document.readyState === "interactive" ||
+            document.readyState === "complete"
+          ) {
             callback();
           }
           break;
@@ -220,9 +224,13 @@ class ScriptHandler {
           }
           break;
         }
-        default: {}
+        default: {
+        }
       }
-      window.addEventListener(eventListener.name as keyof WindowEventMap, callback);
+      window.addEventListener(
+        eventListener.name as keyof WindowEventMap,
+        callback
+      );
     }
   }
 
@@ -240,7 +248,6 @@ class ScriptHandler {
       const scriptExecutors = this.scriptStore[priorityLevel].map(
         (scriptConfig) => {
           return () => {
-
             // Promise will resolve when the script is either fully loaded or it errored out!
             let promiseResolver: any = () => {};
             const scriptCompletionPromise: Promise<void> = new Promise(
@@ -256,9 +263,6 @@ class ScriptHandler {
               }
             );
 
-            // Attaching callbacks for listening to script.src completion if applicable!
-            scriptMicroUtil.wrapExternalScriptActionMethods(scriptConfig, promiseResolver);
-
             const appendElementCB = () => {
               domHandler.append(scriptConfig, ElementType.SCRIPT);
               scriptConfig.processed = true;
@@ -269,6 +273,11 @@ class ScriptHandler {
               this.applyEventListener(scriptConfig, appendElementCB);
               promiseResolver();
             } else if (!scriptConfig.processed || reRun) {
+              // Attaching callbacks for listening to script.src completion if applicable!
+              scriptMicroUtil.wrapExternalScriptActionMethods(
+                scriptConfig,
+                promiseResolver
+              );
               appendElementCB();
             } else {
               // In case the script is marked processed, we need not run it unless reRun is specified as true!
@@ -311,14 +320,14 @@ class ScriptHandler {
       config: {
         attr?: GenericObject;
         priority?: LoadPriority;
-        timeout?: number
+        timeout?: number;
       } = {}
     ) => {
-      const {
-        attr = {},
-        priority = LoadPriority.MEDIUM,
-        timeout
-      } = config;
+      const { attr = {}, priority = LoadPriority.MEDIUM, timeout } = config;
+
+      if (attr.src) {
+        delete attr.src;
+      }
 
       const getSecondLvlChain = (indexList: number[]) => {
         return {
@@ -326,7 +335,6 @@ class ScriptHandler {
             eventName: string,
             additionalInfo: { isCustom: boolean } = { isCustom: false }
           ): void => {
-
             // For 'EXCEPTIONAL' priority, event listeners will not be applicable!
             if (priority === LoadPriority.EXCEPTIONAL) {
               return;
@@ -334,7 +342,7 @@ class ScriptHandler {
 
             for (let idx = 0; idx < indexList.length; idx++) {
               this.updateConfigWithEventListener(
-                this.scriptStore[priority][idx],
+                this.scriptStore[priority][indexList[idx]],
                 eventName,
                 additionalInfo
               );
@@ -344,16 +352,17 @@ class ScriptHandler {
       };
 
       const src = (srcUrl: string) => {
-        const indexList = this.addExternalScript(srcUrl, attr, priority, timeout);
+        const indexList = this.addExternalScript(
+          srcUrl,
+          attr,
+          priority,
+          timeout
+        );
         return getSecondLvlChain(indexList);
       };
 
       const inlineCode = (inlineCode: string | Function) => {
-        const indexList = this.addInlineScript(
-          inlineCode,
-          attr,
-          priority
-        );
+        const indexList = this.addInlineScript(inlineCode, attr, priority);
         return getSecondLvlChain(indexList);
       };
 
