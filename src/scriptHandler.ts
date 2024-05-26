@@ -1,8 +1,17 @@
-import { isDefinedString, isElementNotDefined, isFunction, minifyCode, scriptMicroUtil, wrapFunctionOverTemplateCodeAndStringify } from "./Utility/utils";
+import eventBus from "./Utility/eventBus";
+import {
+  isDefinedString,
+  isElementNotDefined,
+  isFunction,
+  minifyCode,
+  scriptMicroUtil,
+  wrapFunctionOverTemplateCodeAndStringify,
+} from "./Utility/utils";
 import domHandler, { ElementType } from "./domHandler";
 import {
   GenericObject,
   LoadPriority,
+  NATIVE_EVENTS,
   ScriptEntry,
   ScriptStore,
   initConfig,
@@ -14,25 +23,25 @@ import { getModeObject } from "promise-butler";
  */
 type ScriptEntryCustom = ScriptEntry & { priority?: LoadPriority };
 
+/**
+ * Creates a base object out of the LoadPriority enum. Each priority key will contain an empty array.
+ * @returns Object
+ */
 const getBasePriorityValueObject = () => {
-  return Object.keys(LoadPriority).reduce(
-    (store, currLvl) => {
-      const priorityKey = +currLvl as keyof ScriptStore;
-      if (isNaN(priorityKey)) {
-        return store;
-      }
-      store[priorityKey] = [];
+  return Object.keys(LoadPriority).reduce((store, currLvl) => {
+    const priorityKey = +currLvl as keyof ScriptStore;
+    if (isNaN(priorityKey)) {
       return store;
-    },
-    {} as ScriptStore
-  );
+    }
+    store[priorityKey] = [];
+    return store;
+  }, {} as ScriptStore);
 };
 
 /**
  * Class responsible for handling scripts.
  */
 class ScriptHandler {
-
   /**
    * Stores the internal config.
    */
@@ -91,8 +100,9 @@ class ScriptHandler {
    */
   private addScriptConfig(
     scriptConfig: ScriptEntry,
-    priority: LoadPriority
-  ): void {
+    priority: LoadPriority,
+    timeout?: number
+  ): number[] {
     for (const key in scriptConfig) {
       const propertyName = key as keyof ScriptEntry;
       if (isElementNotDefined(scriptConfig[propertyName])) {
@@ -104,6 +114,7 @@ class ScriptHandler {
       { async: true },
       scriptConfig.attributes
     );
+    let idxList = [];
     if (
       scriptMicroUtil.isExternalScriptTag(scriptConfig) &&
       scriptMicroUtil.isInlineScriptTag(scriptConfig)
@@ -111,10 +122,17 @@ class ScriptHandler {
       // In case a script entry contains both src and inlineCode, then we will create two separate entry for both of them!
       const scriptConfigWithHtml = { ...scriptConfig };
       delete scriptConfigWithHtml.src;
-      this.scriptStore[priority].push(scriptConfigWithHtml);
+      idxList.push(this.scriptStore[priority].push(scriptConfigWithHtml));
       delete scriptConfig.inlineCode;
     }
-    this.scriptStore[priority].push(scriptConfig);
+
+    if (timeout) {
+      // The timeout will only be applicable for externally loaded script tags!
+      scriptConfig.timeout = timeout;
+    }
+
+    idxList.push(this.scriptStore[priority].push(scriptConfig));
+    return idxList;
   }
 
   /**
@@ -126,9 +144,18 @@ class ScriptHandler {
   private addExternalScript(
     srcUrl: string,
     attributes: GenericObject,
-    priority: LoadPriority
-  ): void {
-    this.addScriptConfig({ src: srcUrl, attributes }, priority);
+    priority: LoadPriority,
+    timeout?: number
+  ): number[] {
+
+    const scriptConfig = { src: srcUrl, attributes };
+
+    if (priority === LoadPriority.EXCEPTIONAL) {
+      scriptConfig.attributes = Object.assign({ async: true }, scriptConfig.attributes || {});
+      return domHandler.append(scriptConfig, ElementType.SCRIPT), [-1];
+    }
+
+    return this.addScriptConfig(scriptConfig, priority, timeout);
   }
 
   /**
@@ -137,22 +164,66 @@ class ScriptHandler {
    * @param attributes Attributes of the script.
    * @param priority Priority level of the script.
    */
-  private async addInlineScript(
+  private addInlineScript(
     inlineCode: string | Function,
     attributes: GenericObject,
-    priority: LoadPriority,
-    minifyJS: boolean
-  ) {
+    priority: LoadPriority
+  ): number[] {
+
     let mainJScode = "";
+
     if (isDefinedString(inlineCode)) {
       mainJScode = inlineCode;
     } else if (isFunction(inlineCode)) {
       mainJScode = wrapFunctionOverTemplateCodeAndStringify(inlineCode);
     }
-    if (minifyJS) {
-      mainJScode = await minifyCode(mainJScode)
+
+    const scriptConfig = { inlineCode: mainJScode, attributes };
+
+    if (priority === LoadPriority.EXCEPTIONAL) {
+      // In case of EXCEPTIONAL priority, the script will invoked immediately without the execution of the scriptConfig queue!
+      // In case of this mode, the script will not be store inside the queue! And hence this mode will be stateless!
+      return domHandler.append(scriptConfig, ElementType.SCRIPT), [-1];
     }
-    this.addScriptConfig({ inlineCode: mainJScode, attributes }, priority);
+
+    return this.addScriptConfig(
+      scriptConfig,
+      priority
+    );
+  }
+
+  /**
+   * Applies an event listener based on the eventListener configuration in the script entry.
+   * If the eventListener is custom, it subscribes to the event using eventBus.
+   * If the eventListener is a native event, it checks the document ready state and adds the event listener to the window.
+   * @param scriptConfig The script entry configuration.
+   * @param callback The callback function to be executed when the event occurs.
+   */
+  private applyEventListener(scriptConfig: ScriptEntry, callback: () => void) {
+    const { eventListener } = scriptConfig;
+    if (!eventListener) {
+      return;
+    }
+    if (eventListener?.isCustom) {
+      eventBus.on(eventListener.name, callback);
+    } else {
+      switch (eventListener.name) {
+        case NATIVE_EVENTS.DOM_LOAD: { // If these conditions don't meet - just fall down to default!
+          if (document.readyState === "interactive" || document.readyState === "complete") {
+            callback();
+          }
+          break;
+        }
+        case NATIVE_EVENTS.WIN_LOAD: {
+          if (document.readyState === "complete") {
+            callback();
+          }
+          break;
+        }
+        default: {}
+      }
+      window.addEventListener(eventListener.name as keyof WindowEventMap, callback);
+    }
   }
 
   /**
@@ -162,7 +233,6 @@ class ScriptHandler {
     const promiseSequentialExecutor = (promiseArr: (() => Promise<any>)[]) =>
       this.promiseManager.SEQUENTIAL()(promiseArr);
     const scriptExecutionCB = [
-      LoadPriority.EXCEPTIONAL,
       LoadPriority.HIGH,
       LoadPriority.MEDIUM,
       LoadPriority.LOW,
@@ -170,34 +240,42 @@ class ScriptHandler {
       const scriptExecutors = this.scriptStore[priorityLevel].map(
         (scriptConfig) => {
           return () => {
+
             // Promise will resolve when the script is either fully loaded or it errored out!
             let promiseResolver: any = () => {};
             const scriptCompletionPromise: Promise<void> = new Promise(
               (resolve) => {
-                promiseResolver = resolve;
+                const timeout = setTimeout(() => {
+                  // We will wait for sometime for the script to load!
+                  promiseResolver();
+                }, scriptConfig.timeout || 30000);
+                promiseResolver = () => {
+                  clearTimeout(timeout);
+                  resolve();
+                };
               }
             );
-            if (scriptMicroUtil.isExternalScriptTag(scriptConfig)) {
-              scriptConfig.attributes = scriptConfig.attributes || {};
-              // TODO: Fix the below type!
-              const loadCb: any = scriptConfig.attributes.onload || (() => {});
-              scriptConfig.attributes.onload = () => {
-                loadCb?.();
-                promiseResolver();
-              };
-              const errorCb: any =
-                scriptConfig.attributes.onerror || (() => {});
-              scriptConfig.attributes.onerror = () => {
-                errorCb?.();
-                promiseResolver();
-              };
-            }
-            if (!scriptConfig.processed || reRun) {
+
+            // Attaching callbacks for listening to script.src completion if applicable!
+            scriptMicroUtil.wrapExternalScriptActionMethods(scriptConfig, promiseResolver);
+
+            const appendElementCB = () => {
               domHandler.append(scriptConfig, ElementType.SCRIPT);
               scriptConfig.processed = true;
+            };
+
+            if (scriptConfig.eventListener) {
+              // In case of an event listener, we will resolve the promise since we do not want to block others!
+              this.applyEventListener(scriptConfig, appendElementCB);
+              promiseResolver();
+            } else if (!scriptConfig.processed || reRun) {
+              appendElementCB();
             } else {
+              // In case the script is marked processed, we need not run it unless reRun is specified as true!
+              // So, resolving the promise here!
               promiseResolver();
             }
+
             if (scriptMicroUtil.isInlineScriptTag(scriptConfig)) {
               promiseResolver();
             }
@@ -216,21 +294,69 @@ class ScriptHandler {
     }
   }
 
+  public updateConfigWithEventListener(
+    scriptConfigObject: ScriptEntry,
+    eventName: string,
+    additionalInfo: { isCustom: boolean }
+  ): void {
+    scriptConfigObject.eventListener = { name: eventName, ...additionalInfo };
+  }
+
   /**
    * Initializes the script handler with add and load functions.
    * @returns Object with add and load functions.
    */
   public init() {
     const add = ((
-      config: { attr?: GenericObject; priority?: LoadPriority; minifyJS?: boolean } = {}
+      config: {
+        attr?: GenericObject;
+        priority?: LoadPriority;
+        timeout?: number
+      } = {}
     ) => {
-      const { attr = {}, priority = LoadPriority.MEDIUM, minifyJS = false } = config;
+      const {
+        attr = {},
+        priority = LoadPriority.MEDIUM,
+        timeout
+      } = config;
+
+      const getSecondLvlChain = (indexList: number[]) => {
+        return {
+          listen: (
+            eventName: string,
+            additionalInfo: { isCustom: boolean } = { isCustom: false }
+          ): void => {
+
+            // For 'EXCEPTIONAL' priority, event listeners will not be applicable!
+            if (priority === LoadPriority.EXCEPTIONAL) {
+              return;
+            }
+
+            for (let idx = 0; idx < indexList.length; idx++) {
+              this.updateConfigWithEventListener(
+                this.scriptStore[priority][idx],
+                eventName,
+                additionalInfo
+              );
+            }
+          },
+        };
+      };
+
       const src = (srcUrl: string) => {
-        this.addExternalScript(srcUrl, attr, priority);
+        const indexList = this.addExternalScript(srcUrl, attr, priority, timeout);
+        return getSecondLvlChain(indexList);
       };
-      const inlineCode = async (inlineCode: string | Function) => {
-        await this.addInlineScript(inlineCode, attr, priority, minifyJS);
+
+      const inlineCode = (inlineCode: string | Function) => {
+        const indexList = this.addInlineScript(
+          inlineCode,
+          attr,
+          priority
+        );
+        return getSecondLvlChain(indexList);
       };
+
       return { src, inlineCode };
     }).bind(this);
 

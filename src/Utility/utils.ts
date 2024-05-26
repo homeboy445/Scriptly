@@ -69,7 +69,26 @@ export const scriptMicroUtil = {
      * @param {ScriptEntry} scriptEntry - The script entry to check.
      * @returns {boolean} - Returns true if the script entry has an 'inlineCode' property; otherwise, false.
      */
-    isInlineScriptTag: ({ inlineCode }: ScriptEntry) => !isElementNotDefined(inlineCode)
+    isInlineScriptTag: ({ inlineCode }: ScriptEntry) => !isElementNotDefined(inlineCode),
+
+    wrapExternalScriptActionMethods: (scriptConfig: ScriptEntry, completionCallback: Function): void => {
+        if (!scriptMicroUtil.isExternalScriptTag(scriptConfig)) {
+            return;
+        }
+        scriptConfig.attributes = scriptConfig.attributes || {};
+        // TODO: Fix the below type!
+        const loadCb: any = scriptConfig.attributes.onload || (() => {});
+        scriptConfig.attributes.onload = () => {
+          loadCb?.();
+          completionCallback();
+        };
+        const errorCb: any =
+          scriptConfig.attributes.onerror || (() => {});
+        scriptConfig.attributes.onerror = () => {
+          errorCb?.();
+          completionCallback();
+        };
+    }
 };
 
 /**

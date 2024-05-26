@@ -21,7 +21,6 @@
     "webpack-dev-server": "^5.0.4"
   },
   "dependencies": {
-    "promise-butler": "^1.0.8",
-    "terser": "^5.31.0"
+    "promise-butler": "^1.0.8"
   }
 }
