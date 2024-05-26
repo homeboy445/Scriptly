@@ -1,9 +1,9 @@
 
 export enum LoadPriority {
-    LOW = 1,
-    MEDIUM = 2,
-    HIGH = 3,
-    EXCEPTIONAL = 4
+    LOW = 4,
+    MEDIUM = 3,
+    HIGH = 2,
+    EXCEPTIONAL = 1
 };
 
 export type ScriptEntry = {

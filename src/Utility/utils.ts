@@ -1,3 +1,4 @@
+import { minify } from "terser";
 import { ScriptEntry } from "../types/types";
 
 /**
@@ -23,7 +24,7 @@ export const scriptMicroUtil = {
      * @param {ScriptEntry} scriptEntry - The script entry to check.
      * @returns {boolean} - Returns true if the script entry has a 'src' property; otherwise, false.
      */
-    isExternalScriptTag: ({ src }: ScriptEntry) => !!src,
+    isExternalScriptTag: ({ src }: ScriptEntry) => !isElementNotDefined(src),
 
     /**
      * Checks if the script entry is an inline script tag.
@@ -31,5 +32,20 @@ export const scriptMicroUtil = {
      * @param {ScriptEntry} scriptEntry - The script entry to check.
      * @returns {boolean} - Returns true if the script entry has an 'inlineCode' property; otherwise, false.
      */
-    isInlineScriptTag: ({ inlineCode }: ScriptEntry) => !!inlineCode
+    isInlineScriptTag: ({ inlineCode }: ScriptEntry) => !isElementNotDefined(inlineCode)
 };
+
+/**
+ * Minifies the provided JavaScript code using Terser.
+ *
+ * @param {string} jsCode - The JavaScript code to minify.
+ * @returns {Promise<string>} - A promise that resolves with the minified code.
+ */
+export const minifyCode = async (jsCode: string): Promise<string> => {
+    try {
+      const result = await minify(jsCode);
+      return result.code || jsCode;
+    } catch (e) {
+      return jsCode;
+    }
+}
