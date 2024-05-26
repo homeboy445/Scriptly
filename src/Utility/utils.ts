@@ -47,11 +47,7 @@ export const stringifyFunction = (element: Function): string => Function.prototy
  */
 export const wrapFunctionOverTemplateCodeAndStringify = (element: Function): string => {
     const functionString = stringifyFunction(element);
-    const variableIdentifier = `scrp_orch_${Date.now()}`;
-    const functionCode = `
-        let ${variableIdentifier} = ${functionString};
-        ${variableIdentifier}?.();
-    `;
+    const functionCode = `(${functionString})()`;
     return functionCode;
 }
 

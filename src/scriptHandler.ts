@@ -170,6 +170,7 @@ class ScriptHandler {
       const scriptExecutors = this.scriptStore[priorityLevel].map(
         (scriptConfig) => {
           return () => {
+            // Promise will resolve when the script is either fully loaded or it errored out!
             let promiseResolver: any = () => {};
             const scriptCompletionPromise: Promise<void> = new Promise(
               (resolve) => {
