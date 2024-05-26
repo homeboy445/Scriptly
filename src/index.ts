@@ -1,13 +1,15 @@
-import scriptHandler from "./scriptHandler";
+import ScriptHandler from "./scriptHandler";
+import { initConfig } from "./types/types";
 
-const init = () => {
+const init = (config: initConfig = { stateFull: true }) => {
+    const scriptHandler = new ScriptHandler(config);
     const scriptHandlerConfig = scriptHandler.init();
-    const loader = function () {
-        scriptHandler.load();
+    const loader = function (reRun = false) {
+        scriptHandler.run(reRun);
     }
     return {
         scripts: scriptHandlerConfig,
-        run: loader
+        run: loader,
     };
 }
 

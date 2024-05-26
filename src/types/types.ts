@@ -6,6 +6,10 @@ export enum LoadPriority {
     EXCEPTIONAL = 1
 };
 
+export interface initConfig {
+    stateFull?: boolean
+};
+
 export type ScriptEntry = {
     attributes?: Record<string, unknown>;
     processed?: boolean;

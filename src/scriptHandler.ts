@@ -5,6 +5,7 @@ import {
   LoadPriority,
   ScriptEntry,
   ScriptStore,
+  initConfig,
 } from "./types/types";
 import { getModeObject } from "promise-butler";
 
@@ -13,25 +14,43 @@ import { getModeObject } from "promise-butler";
  */
 type ScriptEntryCustom = ScriptEntry & { priority?: LoadPriority };
 
-/**
- * Class responsible for handling scripts.
- */
-class ScriptHandler {
-  /**
-   * Store to hold scripts based on priority levels.
-   */
-  scriptStore: ScriptStore = Object.keys(LoadPriority).reduce(
+const getBasePriorityValueObject = () => {
+  return Object.keys(LoadPriority).reduce(
     (store, currLvl) => {
-      store[+currLvl as keyof ScriptStore] = [];
+      const priorityKey = +currLvl as keyof ScriptStore;
+      if (isNaN(priorityKey)) {
+        return store;
+      }
+      store[priorityKey] = [];
       return store;
     },
     {} as ScriptStore
   );
+};
+
+/**
+ * Class responsible for handling scripts.
+ */
+class ScriptHandler {
+
+  /**
+   * Stores the internal config.
+   */
+  config: initConfig = {};
+
+  /**
+   * Store to hold scripts based on priority levels.
+   */
+  scriptStore: ScriptStore = getBasePriorityValueObject();
 
   /**
    * Promise manager for handling script promises.
    */
   promiseManager = getModeObject();
+
+  constructor(config: initConfig) {
+    this.config = config;
+  }
 
   /**
    * Validates and stores script entries based on priority.
@@ -134,7 +153,7 @@ class ScriptHandler {
   /**
    * Loads scripts in a sequential manner based on priority levels.
    */
-  public async load() {
+  public async run(reRun: boolean) {
     const promiseSequentialExecutor = (promiseArr: (() => Promise<any>)[]) =>
       this.promiseManager.SEQUENTIAL()(promiseArr);
     const scriptExecutionCB = [
@@ -167,7 +186,7 @@ class ScriptHandler {
                 promiseResolver();
               };
             }
-            if (!scriptConfig.processed) {
+            if (!scriptConfig.processed || reRun) {
               domHandler.append(scriptConfig, ElementType.SCRIPT);
               scriptConfig.processed = true;
             } else {
@@ -182,7 +201,13 @@ class ScriptHandler {
       );
       return () => promiseSequentialExecutor(scriptExecutors);
     });
+
     await promiseSequentialExecutor(scriptExecutionCB);
+
+    if (!this.config.stateFull) {
+      // This will signify that we will not storing anything for this session!
+      this.scriptStore = getBasePriorityValueObject();
+    }
   }
 
   /**
@@ -190,7 +215,6 @@ class ScriptHandler {
    * @returns Object with add and load functions.
    */
   public init() {
-
     const add = ((
       config: { attr?: GenericObject; priority?: LoadPriority; minifyJS?: boolean } = {}
     ) => {
@@ -212,6 +236,4 @@ class ScriptHandler {
   }
 }
 
-const scriptHandler = new ScriptHandler();
-
-export default scriptHandler;
+export default ScriptHandler;
