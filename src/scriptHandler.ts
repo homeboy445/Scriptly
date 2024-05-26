@@ -1,4 +1,4 @@
-import { isElementNotDefined, minifyCode, scriptMicroUtil } from "./Utility/utils";
+import { isDefinedString, isElementNotDefined, isFunction, minifyCode, scriptMicroUtil, wrapFunctionOverTemplateCodeAndStringify } from "./Utility/utils";
 import domHandler, { ElementType } from "./domHandler";
 import {
   GenericObject,
@@ -138,12 +138,17 @@ class ScriptHandler {
    * @param priority Priority level of the script.
    */
   private async addInlineScript(
-    inlineCode: string,
+    inlineCode: string | Function,
     attributes: GenericObject,
     priority: LoadPriority,
     minifyJS: boolean
   ) {
-    let mainJScode = inlineCode;
+    let mainJScode = "";
+    if (isDefinedString(inlineCode)) {
+      mainJScode = inlineCode;
+    } else if (isFunction(inlineCode)) {
+      mainJScode = wrapFunctionOverTemplateCodeAndStringify(inlineCode);
+    }
     if (minifyJS) {
       mainJScode = await minifyCode(mainJScode)
     }
@@ -222,7 +227,7 @@ class ScriptHandler {
       const src = (srcUrl: string) => {
         this.addExternalScript(srcUrl, attr, priority);
       };
-      const inlineCode = async (inlineCode: string) => {
+      const inlineCode = async (inlineCode: string | Function) => {
         await this.addInlineScript(inlineCode, attr, priority, minifyJS);
       };
       return { src, inlineCode };

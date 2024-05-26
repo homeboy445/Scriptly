@@ -1,6 +1,11 @@
 import ScriptHandler from "./scriptHandler";
 import { initConfig } from "./types/types";
 
+/**
+ * The entry point to the script orchestrator.
+ * @param config Object
+ * @returns void
+ */
 const init = (config: initConfig = { stateFull: true }) => {
     const scriptHandler = new ScriptHandler(config);
     const scriptHandlerConfig = scriptHandler.init();
