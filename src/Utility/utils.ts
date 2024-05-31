@@ -1,4 +1,3 @@
-import { minify } from "terser";
 import { ScriptEntry } from "../types/types";
 
 /**
@@ -90,18 +89,3 @@ export const scriptMicroUtil = {
         };
     }
 };
-
-/**
- * Minifies the provided JavaScript code using Terser.
- *
- * @param {string} jsCode - The JavaScript code to minify.
- * @returns {Promise<string>} - A promise that resolves with the minified code.
- */
-export const minifyCode = async (jsCode: string): Promise<string> => {
-    try {
-      const result = await minify(jsCode);
-      return result.code || jsCode;
-    } catch (e) {
-      return jsCode;
-    }
-}

@@ -3,7 +3,6 @@ import {
   isDefinedString,
   isElementNotDefined,
   isFunction,
-  minifyCode,
   scriptMicroUtil,
   wrapFunctionOverTemplateCodeAndStringify,
 } from "./Utility/utils";
