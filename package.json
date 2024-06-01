@@ -8,10 +8,11 @@
     "build": "cross-env BUILD_MODE=production webpack --config webpack.config.js && tsc",
     "start": "webpack serve --mode development",
     "test": "npm run build && cypress run",
-    "test2": "npm run build && cypress open"
+    "test2": "npm run build && cypress open",
+    "publish": "rm -rf release && mkdir release && npm run test && mv ./dist/* ./release"
   },
   "keywords": [],
-  "author": "",
+  "author": "Akshit",
   "license": "MIT",
   "devDependencies": {
     "@babel/core": "^7.24.6",
