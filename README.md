@@ -20,8 +20,8 @@ Yet to update!
 
 **Alternatively, you can use a CDN link:**
 
-```html
-Yet to update!
+```
+https://cdn.jsdelivr.net/gh/homeboy445/ScriptOrchestrator@main/release/bundle.js
 ```
 
 ### Usage
