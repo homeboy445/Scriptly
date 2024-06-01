@@ -109,6 +109,8 @@ This section provides a detailed explanation of the available methods and their 
 
 * Adds a script (either inline or external) to the execution queue.
 * Optional `config` object allows for additional configuration.
+* For passing attributes, simply pass them directly inside the config object.
+* In case you need to use any attributes that are reserved such as priority, timeout, etc. then pass those values inside attr key!
 
 **4. src(srcUrl: string)**
 

@@ -3,24 +3,24 @@ import {
   isDefinedString,
   isElementNotDefined,
   isFunction,
+  removeUndefinedKeys,
   scriptMicroUtil,
   wrapFunctionOverTemplateCodeAndStringify,
 } from "./Utility/utils";
 import domHandler, { ElementType } from "./domHandler";
 import {
   GenericObject,
+  InlineCodeActions,
   LoadPriority,
   NATIVE_EVENTS,
   ScriptEntry,
+  ScriptEntryCustom,
   ScriptStore,
+  Scripts,
+  SrcActions,
   initConfig,
-} from "./types/types";
+} from "../types/types";
 import { getModeObject } from "promise-butler";
-
-/**
- * Custom type extending ScriptEntry with an optional priority property.
- */
-type ScriptEntryCustom = ScriptEntry & { priority?: LoadPriority };
 
 /**
  * Creates a base object out of the LoadPriority enum. Each priority key will contain an empty array.
@@ -311,22 +311,41 @@ class ScriptHandler {
   }
 
   /**
+   * Retrieves all script entries from the script store.
+   * @returns An array of script entries with updated attributes and priority.
+   */
+  public entries() {
+    return Object.keys(this.scriptStore).reduce((entryList, priorityValue) => {
+      const priorityKey = +priorityValue as LoadPriority;
+      const scriptsList = this.scriptStore[priorityKey].map((scriptEntries) => {
+        scriptEntries.attributes = { ...scriptEntries.attributes };
+        delete scriptEntries.attributes.async;
+        return { ...scriptEntries, priority: priorityKey };
+      });
+      return [ ...entryList, ...scriptsList ];
+    }, ([] as any));
+  }
+
+  /**
    * Initializes the script handler with add and load functions.
    * @returns Object with add and load functions.
    */
-  public init() {
+  public init(): Scripts {
     const add = ((
       config: {
         attr?: GenericObject;
         priority?: LoadPriority;
         timeout?: number;
-      } = {}
-    ) => {
+      } & GenericObject = {}
+    ): InlineCodeActions & SrcActions => {
       const { attr = {}, priority = LoadPriority.MEDIUM, timeout } = config;
 
       if (attr.src) {
         delete attr.src;
       }
+
+      // Assigning the global keys to attr object!
+      Object.assign(attr, removeUndefinedKeys({ ...config, priority: undefined, timeout: undefined }));
 
       const getSecondLvlChain = (indexList: number[]) => {
         return {
@@ -372,7 +391,7 @@ class ScriptHandler {
       this.validateAndStore(scriptEntries);
     }).bind(this);
 
-    return { add, load };
+    return { add, load, entries: this.entries.bind(this) };
   }
 }
 

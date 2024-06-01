@@ -1,4 +1,4 @@
-import { ScriptEntry } from "../types/types";
+import { GenericObject, ScriptEntry } from "../../types/types";
 
 /**
  * Checks if the provided element is either undefined, null, NaN, or an empty string.
@@ -13,6 +13,19 @@ export const isElementNotDefined = (element: unknown): boolean => {
     const isEmptyString = element === "";
     return isUndefined || isNull || isNaN || isEmptyString;
 };
+
+/**
+ * Removes undefined keys from the provided object.
+ *
+ * @param {object} obj - The object to remove undefined keys from.
+ * @returns {object} - The object with undefined keys removed.
+ */
+export const removeUndefinedKeys = (targetObj: GenericObject): object => {
+  const obj = { ...targetObj };
+  Object.keys(obj).forEach(key => obj[key] === undefined && delete obj[key]);
+  return obj;
+};
+
 
 /**
  * Checks if the provided element is a defined string.

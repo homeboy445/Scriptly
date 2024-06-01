@@ -1,11 +1,10 @@
 const path = require('path');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
-const { CleanWebpackPlugin } = require('clean-webpack-plugin');
 const { merge } = require("webpack-merge");
 
-const buildMode = process.env.BUILD_MODE || "development";
+const buildMode = process.env.BUILD_MODE ?? "development";
 
-console.log("Building for:", process.env.BUILD_MODE);
+console.log("Building for:", buildMode);
 
 const baseConfig = {
   entry: './src/index.ts',
@@ -37,10 +36,10 @@ const baseConfig = {
     path: path.resolve(__dirname, 'dist'),
     library: 'scriptOrch'
   },
-  plugins: [
-    new CleanWebpackPlugin(),
-  ]
+  plugins: []
 };
+
+const finalBuildConfigList = [baseConfig];
 
 if (buildMode === "development") {
   baseConfig.plugins.push(new HtmlWebpackPlugin({
@@ -49,10 +48,11 @@ if (buildMode === "development") {
   baseConfig.devServer = {
     static: './dist',
   };
+} else {
+  const commonJsExportConfig = merge({ ...baseConfig }, {
+    output: { filename: "index.cjs", libraryTarget: "commonjs2" },
+  });
+  finalBuildConfigList.push(commonJsExportConfig);
 }
 
-const commonJsExportConfig = merge(baseConfig, {
-  output: { filename: "index.cjs", libraryTarget: "commonjs2" },
-});
-
-module.exports = [baseConfig, commonJsExportConfig];
+module.exports = finalBuildConfigList;

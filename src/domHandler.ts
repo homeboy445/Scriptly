@@ -1,6 +1,6 @@
 import eventBus from "./Utility/eventBus";
 import { scriptMicroUtil } from "./Utility/utils";
-import { EVENTS_ENUM, ScriptEntry } from "./types/types";
+import { EVENTS_ENUM, ScriptEntry } from "../types/types";
 
 export enum ElementType {
   SCRIPT = 1,
